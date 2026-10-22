@@ -78,6 +78,23 @@ wget https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
 <script src="./html2canvas.min.js"></script>
 ```
 
+## 联系作者 & 赞赏支持
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <b>联系作者</b><br><br>
+      <img src="icons/wechat-qr.png" alt="微信联系方式" width="200"/><br>
+      <small>扫码添加微信</small>
+    </td>
+    <td align="center">
+      <b>赞赏支持</b><br><br>
+      <img src="icons/zanshang.png" alt="赞赏码" width="200"/><br>
+      <small>如果觉得有帮助，欢迎赞赏</small>
+    </td>
+  </tr>
+</table>
+
 ## License
 
 本项目采用 [MIT License](./LICENSE) 发布。
