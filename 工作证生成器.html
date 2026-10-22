@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作证生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    background: #eef0f3;
+    color: #1f2430;
+    min-height: 100vh;
+    display: flex;
+    gap: 0;
+  }
+
+  /* ============ 左侧面板 ============ */
+  .panel {
+    width: 340px;
+    flex: 0 0 340px;
+    background: #fff;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 22px 20px 90px;
+    border-right: 1px solid #e2e5ea;
+  }
+  .panel h1 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: .5px;
+  }
+  .panel .sub {
+    font-size: 12px;
+    color: #8b93a3;
+    margin-bottom: 20px;
+  }
+  .group { margin-bottom: 18px; }
+  .group > label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #5a6274;
+    margin-bottom: 7px;
+    letter-spacing: .3px;
+  }
+  input[type="text"], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d8dce4;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fbfcfd;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input[type="text"]:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #4a7fd4;
+    box-shadow: 0 0 0 3px rgba(74,127,212,.12);
+    background: #fff;
+  }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > * { flex: 1; min-width: 0; }
+  .hint { font-size: 11px; color: #a0a7b5; margin-top: 5px; line-height: 1.5; }
+
+  /* 字段编辑行 */
+  .field-item {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+    align-items: center;
+  }
+  .field-item input.k { flex: 0 0 68px; }
+  .field-item input.v { flex: 1; }
+  .del {
+    flex: 0 0 26px;
+    height: 32px;
+    border: 1px solid #e2e5ea;
+    background: #fff;
+    border-radius: 6px;
+    color: #b0b6c2;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    transition: .15s;
+  }
+  .del:hover { color: #d64545; border-color: #f0b9b9; background: #fff6f6; }
+  .add-btn {
+    width: 100%;
+    padding: 7px;
+    border: 1px dashed #c9cfda;
+    background: #fafbfc;
+    border-radius: 6px;
+    color: #6c7486;
+    font-size: 12px;
+    cursor: pointer;
+    transition: .15s;
+    font-family: inherit;
+  }
+  .add-btn:hover { border-color: #4a7fd4; color: #4a7fd4; background: #f5f9ff; }
+
+  /* 颜色选择 */
+  .color-row { display: flex; gap: 8px; align-items: center; }
+  .color-row input[type="color"] {
+    width: 34px; height: 32px;
+    border: 1px solid #d8dce4;
+    border-radius: 6px;
+    padding: 2px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .color-row input[type="text"] { flex: 1; font-family: Consolas, monospace; font-size: 12px; }
+
+  /* 开关 */
+  .switch-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 0;
+    font-size: 12.5px;
+    color: #444b5c;
+  }
+  .switch {
+    position: relative; width: 38px; height: 21px;
+    background: #d3d8e0; border-radius: 11px; cursor: pointer;
+    transition: .2s; flex: 0 0 38px;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 17px; height: 17px; background: #fff; border-radius: 50%;
+    transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  }
+  .switch.on { background: #4a7fd4; }
+  .switch.on::after { transform: translateX(17px); }
+
+  /* 底部按钮 */
+  .actions {
+    position: fixed; bottom: 0; left: 0; width: 340px;
+    padding: 14px 20px;
+    background: rgba(255,255,255,.94);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid #e2e5ea;
+    display: flex; gap: 8px;
+  }
+  .btn {
+    flex: 1;
+    padding: 11px 0;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: .15s;
+    letter-spacing: .5px;
+  }
+  .btn-primary { background: #1f5fc4; color: #fff; }
+  .btn-primary:hover { background: #174ea6; }
+  .btn-primary:active { transform: scale(.985); }
+  .btn-ghost { background: #f1f3f6; color: #4d5566; flex: 0 0 84px; }
+  .btn-ghost:hover { background: #e7eaef; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+
+  /* ============ 右侧预览 ============ */
+  .stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow: auto;
+    background:
+      radial-gradient(circle at 30% 20%, #f7f8fa 0%, transparent 60%),
+      #eef0f3;
+  }
+  .stage-inner { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .stage-tip { font-size: 12px; color: #9aa2b1; }
+
+  /* ============ 卡片主体 ============ */
+  #card {
+    position: relative;
+    width: 640px;
+    background: repeating-linear-gradient(0deg, #f8f7f4 0 4px, #f0eee9 4px 5px);
+    border-radius: 18px;
+    border: 2px solid var(--border-color);
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    box-shadow: 0 12px 40px rgba(30,40,60,.16), 0 2px 6px rgba(30,40,60,.08);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand-logo {
+    width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; color: var(--brand-color); font-weight: 900;
+    flex: 0 0 46px;
+  }
+  .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+  .brand-name {
+    font-size: 25px; color: var(--brand-color); font-weight: 900;
+    letter-spacing: 2px; line-height: 1.15;
+  }
+  .brand-sub {
+    font-size: 10.5px; color: var(--brand-color); letter-spacing: 1.2px;
+    opacity: .9; margin-top: 1px; font-weight: 600;
+  }
+  .serial { font-size: 15px; color: #2b2b2b; font-weight: 700; white-space: nowrap; }
+
+  .divider {
+    height: 5px;
+    background: linear-gradient(90deg, var(--accent-color) 0%, var(--brand-color) 100%);
+  }
+
+  .card-title {
+    text-align: center;
+    font-size: 52px;
+    font-weight: 900;
+    color: var(--accent-color);
+    letter-spacing: 26px;
+    text-indent: 26px;
+    margin: 20px 0 6px;
+    font-family: "STKaiti", "KaiTi", "Microsoft YaHei", serif;
+  }
+
+  .card-body { display: flex; padding: 12px 34px 32px; gap: 18px; }
+  .fields { flex: 1; padding-top: 6px; min-width: 0; }
+  .f-row {
+    display: flex; align-items: baseline;
+    margin-bottom: 21px;
+    font-size: 18px; color: #1e1e1e;
+  }
+  .f-label { font-weight: 700; white-space: nowrap; flex: 0 0 auto; }
+  .f-value {
+    flex: 1;
+    margin-left: 6px;
+    border-bottom: 1.5px solid #4a4a4a;
+    padding: 0 10px 2px;
+    text-align: center;
+    min-height: 23px;
+    word-break: break-all;
+  }
+
+  .photo-wrap { position: relative; width: 175px; flex: 0 0 175px; }
+  .photo, .photo-ph {
+    width: 175px; height: 235px;
+    border: 1px solid #ddd9d2;
+    background: #f3f1ec;
+    object-fit: cover;
+    display: block;
+  }
+  .photo-ph {
+    display: flex; align-items: center; justify-content: center;
+    color: #c2bdb4; font-size: 13px; letter-spacing: 2px;
+  }
+
+  .stamp {
+    position: absolute;
+    left: -80px; bottom: 4px;
+    width: 132px; height: 132px;
+    transform: rotate(-18deg);
+    color: var(--stamp-color);
+    opacity: .92;
+  }
+  .stamp svg { display: block; width: 132px; height: 132px; overflow: visible; }
+  .stamp svg text { fill: var(--stamp-color); }
+  .stamp .s-arc { font-family: "Microsoft YaHei","PingFang SC",sans-serif; font-weight: 700; }
+  .stamp .s-star { font-family: sans-serif; }
+  .stamp .s-bottom { font-family: "Microsoft YaHei","PingFang SC",sans-serif; font-weight: 700; }
+
+  .watermark {
+    position: absolute;
+    left: 47%; top: 71%;
+    transform: translate(-50%, -50%) rotate(-4deg);
+    font-size: 46px;
+    font-weight: 900;
+    color: rgba(74, 138, 200, .5);
+    letter-spacing: 11px;
+    text-indent: 11px;
+    pointer-events: none;
+    white-space: nowrap;
+    font-family: "Microsoft YaHei", sans-serif;
+  }
+  .hidden { display: none !important; }
+
+  @media (max-width: 1100px) {
+    body { flex-direction: column; }
+    .panel { width: 100%; flex: none; height: auto; border-right: none; border-bottom: 1px solid #e2e5ea; }
+    .actions { position: sticky; width: 100%; }
+    .stage { padding: 20px; }
+    #card { transform: scale(.72); transform-origin: top center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= 左侧编辑面板 ================= -->
+<aside class="panel">
+  <h1>工作证生成器</h1>
+  <p class="sub">填写信息，右侧实时预览，一键导出 PNG</p>
+
+  <div class="group">
+    <label>单位名称</label>
+    <input type="text" id="org" value="中国电信" placeholder="如：中国电信">
+    <div style="height:8px"></div>
+    <input type="text" id="orgEn" value="CHINA TELECOM" placeholder="英文名 / 副标题（可留空）">
+  </div>
+
+  <div class="group">
+    <label>Logo</label>
+    <div class="row2">
+      <input type="text" id="logoText" value="◈" placeholder="文字/符号" maxlength="3">
+      <input type="file" id="logoFile" accept="image/*" style="display:none">
+      <button class="add-btn" style="flex:1" onclick="document.getElementById('logoFile').click()">上传图片</button>
+    </div>
+    <p class="hint">可用符号（◈ ◆ ★ ● ▲）或上传 png/jpg</p>
+  </div>
+
+  <div class="group">
+    <label>证卡标题</label>
+    <input type="text" id="title" value="工作证" placeholder="工作证 / 员工证">
+  </div>
+
+  <div class="group">
+    <label>编号</label>
+    <input type="text" id="serial" value="鄂武汉 088888" placeholder="如：鄂武汉 088888">
+  </div>
+
+  <div class="group">
+    <label>字段信息</label>
+    <div id="fieldList"></div>
+    <button class="add-btn" onclick="addField()">+ 添加字段</button>
+  </div>
+
+  <div class="group">
+    <label>照片</label>
+    <div class="row2">
+      <input type="file" id="photoFile" accept="image/*" style="display:none">
+      <button class="add-btn" onclick="document.getElementById('photoFile').click()">选择照片</button>
+      <button class="add-btn" onclick="clearPhoto()">清除</button>
+    </div>
+    <p class="hint">建议竖版证件照，比例接近 3:4</p>
+  </div>
+
+  <div class="group">
+    <label>印章</label>
+    <input type="text" id="stampTop" value="中国电信股份有限公司" placeholder="环形公司名称（上半圈）">
+    <div style="height:8px"></div>
+    <input type="text" id="stampBottom" value="公司专用章" placeholder="下半圈文字，如：合同专用章">
+    <div class="switch-row" style="margin-top:8px">
+      <span>显示印章</span>
+      <div class="switch on" id="swStamp"></div>
+    </div>
+    <p class="hint">公司名过长会自动压缩字号；留空则不显示该部分</p>
+  </div>
+
+  <div class="group">
+    <label>水印</label>
+    <input type="text" id="wmText" value="样品展示" placeholder="水印文字，留空即无水印">
+    <div class="switch-row" style="margin-top:8px">
+      <span>显示水印</span>
+      <div class="switch on" id="swWm"></div>
+    </div>
+    <p class="hint">样机展示建议保留，防止被冒用</p>
+  </div>
+
+  <div class="group">
+    <label>配色</label>
+    <div class="color-row" style="margin-bottom:8px">
+      <input type="color" id="cBrand" value="#1a4fa0">
+      <input type="text" id="tBrand" value="#1a4fa0">
+      <span style="font-size:12px;color:#7b8394;flex:0 0 44px">品牌色</span>
+    </div>
+    <div class="color-row" style="margin-bottom:8px">
+      <input type="color" id="cAccent" value="#d43a2f">
+      <input type="text" id="tAccent" value="#d43a2f">
+      <span style="font-size:12px;color:#7b8394;flex:0 0 44px">标题色</span>
+    </div>
+    <div class="color-row">
+      <input type="color" id="cStamp" value="#c82828">
+      <input type="text" id="tStamp" value="#c82828">
+      <span style="font-size:12px;color:#7b8394;flex:0 0 44px">印章色</span>
+    </div>
+  </div>
+</aside>
+
+<div class="actions">
+  <button class="btn btn-primary" id="btnPng">导出 PNG</button>
+  <button class="btn btn-ghost" id="btnHtml">导出 HTML</button>
+</div>
+
+<!-- ================= 右侧预览 ================= -->
+<main class="stage">
+  <div class="stage-inner">
+    <div id="card">
+      <div class="card-header">
+        <div class="brand">
+          <div class="brand-logo" id="pLogo">◈</div>
+          <div>
+            <div class="brand-name" id="pOrg">中国电信</div>
+            <div class="brand-sub" id="pOrgEn">CHINA TELECOM</div>
+          </div>
+        </div>
+        <div class="serial" id="pSerial">编号：鄂武汉 088888</div>
+      </div>
+      <div class="divider"></div>
+      <div class="card-title" id="pTitle">工作证</div>
+      <div class="card-body">
+        <div class="fields" id="pFields"></div>
+        <div class="photo-wrap">
+          <div id="pPhotoWrap"><div class="photo-ph">照 片 位</div></div>
+          <div class="stamp" id="pStamp"></div>
+        </div>
+      </div>
+      <div class="watermark" id="pWatermark">样品展示</div>
+    </div>
+    <p class="stage-tip">导出为 2 倍高清 PNG，可直接打印或贴进文档</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  var DEFAULT_FIELDS = [
+    ['姓名', '陈媛媛'],
+    ['性别', '女'],
+    ['出生', '1999 年 9 月 9 日'],
+    ['单位', '综合管理部'],
+    ['职务', '副主任']
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var photoData = '';
+  var logoData = '';
+
+  /* ---------- 字段编辑 ---------- */
+  function addField(k, v) {
+    var row = document.createElement('div');
+    row.className = 'field-item';
+    row.innerHTML =
+      '<input class="k" type="text" placeholder="标签" value="' + esc(k || '') + '">' +
+      '<input class="v" type="text" placeholder="内容" value="' + esc(v || '') + '">' +
+      '<button class="del" title="删除">×</button>';
+    row.querySelector('.del').onclick = function () {
+      row.remove();
+      render();
+    };
+    row.querySelectorAll('input').forEach(function (i) {
+      i.addEventListener('input', render);
+    });
+    $('fieldList').appendChild(row);
+    render();
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function readFields() {
+    var out = [];
+    $('fieldList').querySelectorAll('.field-item').forEach(function (row) {
+      var k = row.querySelector('.k').value.trim();
+      var v = row.querySelector('.v').value;
+      if (k || v) out.push([k, v]);
+    });
+    return out;
+  }
+
+  /* ---------- 渲染 ---------- */
+  function render() {
+    var brand = $('cBrand').value;
+    var accent = $('cAccent').value;
+    var stamp = $('cStamp').value;
+    var card = $('card');
+    card.style.setProperty('--brand-color', brand);
+    card.style.setProperty('--accent-color', accent);
+    card.style.setProperty('--stamp-color', stamp);
+    card.style.setProperty('--border-color', accent);
+
+    $('pOrg').textContent = $('org').value || '单位名称';
+    var en = $('orgEn').value.trim();
+    $('pOrgEn').textContent = en;
+    $('pOrgEn').style.display = en ? 'block' : 'none';
+
+    var serial = $('serial').value.trim();
+    $('pSerial').textContent = serial ? '编号：' + serial : '';
+    $('pSerial').style.display = serial ? 'block' : 'none';
+
+    $('pTitle').textContent = $('title').value || '工作证';
+
+    if (logoData) {
+      $('pLogo').innerHTML = '<img src="' + logoData + '" alt="">';
+    } else {
+      $('pLogo').textContent = $('logoText').value || '◈';
+    }
+
+    // 字段
+    var wrap = $('pFields');
+    wrap.innerHTML = '';
+    readFields().forEach(function (pair) {
+      var row = document.createElement('div');
+      row.className = 'f-row';
+      var lb = document.createElement('span');
+      lb.className = 'f-label';
+      lb.textContent = pair[0];
+      var vl = document.createElement('span');
+      vl.className = 'f-value';
+      vl.textContent = pair[1];
+      row.appendChild(lb);
+      row.appendChild(vl);
+      wrap.appendChild(row);
+    });
+
+    // 印章：上半环公司名 + 中间五角星 + 下半圈文字
+    renderStamp();
+
+    // 水印
+    var wm = $('wmText').value.trim();
+    $('pWatermark').textContent = wm;
+    $('pWatermark').classList.toggle('hidden', !$('swWm').classList.contains('on') || !wm);
+  }
+
+  /* ---------- 印章 SVG 环形文字 ---------- */
+  function renderStamp() {
+    var el = $('pStamp');
+    var top = $('stampTop').value.trim();
+    var bottom = $('stampBottom').value.trim();
+    var on = $('swStamp').classList.contains('on');
+    if (!on || (!top && !bottom)) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+    el.classList.remove('hidden');
+
+    var S = 132, C = S / 2;                 // 画布尺寸、圆心
+    var rOuter = C - 1.5;                    // 外圈半径
+    var rInnerRing = rOuter - 8;             // 内圈细线半径
+    var rArc = rOuter - 17;                  // 环形文字基线半径
+    var topChars = Array.from(top);
+    var bottomChars = Array.from(bottom);
+
+    var svg = '<svg viewBox="0 0 ' + S + ' ' + S + '" xmlns="http://www.w3.org/2000/svg">';
+
+    // 单圈
+    svg += '<circle cx="' + C + '" cy="' + C + '" r="' + rOuter + '" fill="none" stroke="currentColor" stroke-width="3"/>';
+
+    // 上半环文字：从左到右沿上弧排布
+    if (topChars.length) {
+      var spanTop = Math.min(210, topChars.length * 20);      // 角度跨度
+      var fsTop = topChars.length > 10 ? Math.max(8.5, 15 - (topChars.length - 10) * 0.65) : 15;
+      var stepTop = topChars.length > 1 ? spanTop / (topChars.length - 1) : 0;
+      var startTop = -90 - spanTop / 2;
+      svg += '<g class="s-arc" font-size="' + fsTop.toFixed(1) + '">';
+      topChars.forEach(function (ch, i) {
+        var ang = startTop + stepTop * i;
+        svg += '<text x="' + C + '" y="' + (C - rArc) + '" text-anchor="middle" ' +
+          'dominant-baseline="middle" transform="rotate(' + (ang + 90) + ' ' + C + ' ' + C + ')">' +
+          escSvg(ch) + '</text>';
+      });
+      svg += '</g>';
+    }
+
+    // 中间五角星
+    var starY = C + 6, starR = 25;
+    var pts = [];
+    for (var k = 0; k < 10; k++) {
+      var rr = (k % 2 === 0) ? starR : starR * 0.42;
+      var a = -Math.PI / 2 + k * Math.PI / 5;
+      pts.push((C + rr * Math.cos(a)).toFixed(2) + ',' + (starY + rr * Math.sin(a)).toFixed(2));
+    }
+    svg += '<polygon class="s-star" points="' + pts.join(' ') + '" fill="currentColor"/>';
+
+    // 下半部横向文字
+    if (bottom) {
+      var fsBot = bottomChars.length > 7 ? Math.max(8, 13 - (bottomChars.length - 7) * 0.8) : 13;
+      svg += '<text class="s-bottom" x="' + C + '" y="' + (starY + 41) + '" text-anchor="middle" ' +
+        'font-size="' + fsBot.toFixed(1) + '" letter-spacing="1.5">' + escSvg(bottom) + '</text>';
+    }
+
+    svg += '</svg>';
+    el.innerHTML = svg;
+  }
+
+  function escSvg(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* ---------- 照片 / logo ---------- */
+  function loadImage(file, cb) {
+    var fr = new FileReader();
+    fr.onload = function (e) {
+      var img = new Image();
+      img.onload = function () { cb(e.target.result, img); };
+      img.src = e.target.result;
+    };
+    fr.readAsDataURL(file);
+  }
+
+  $('photoFile').onchange = function () {
+    var f = this.files[0];
+    if (!f) return;
+    loadImage(f, function (data) {
+      photoData = data;
+      render2Photo();
+    });
+  };
+
+  function render2Photo() {
+    var wrap = $('pPhotoWrap');
+    if (photoData) {
+      wrap.innerHTML = '<img class="photo" src="' + photoData + '" alt="">';
+    } else {
+      wrap.innerHTML = '<div class="photo-ph">照 片 位</div>';
+    }
+  }
+
+  function clearPhoto() {
+    photoData = '';
+    $('photoFile').value = '';
+    render2Photo();
+  }
+
+  $('logoFile').onchange = function () {
+    var f = this.files[0];
+    if (!f) return;
+    loadImage(f, function (data) { logoData = data; render(); });
+  };
+
+  /* ---------- 绑定输入 ---------- */
+  ['org', 'orgEn', 'title', 'serial', 'logoText', 'stampTop', 'stampBottom', 'wmText']
+    .forEach(function (id) {
+      $(id).addEventListener('input', render);
+    });
+
+  [['cBrand', 'tBrand'], ['cAccent', 'tAccent'], ['cStamp', 'tStamp']]
+    .forEach(function (pair) {
+      $(pair[0]).addEventListener('input', function () {
+        $(pair[1]).value = this.value;
+        render();
+      });
+      $(pair[1]).addEventListener('input', function () {
+        if (/^#[0-9a-fA-F]{6}$/.test(this.value)) {
+          $(pair[0]).value = this.value;
+          render();
+        }
+      });
+    });
+
+  ['swStamp', 'swWm'].forEach(function (id) {
+    $(id).onclick = function () {
+      this.classList.toggle('on');
+      render();
+    };
+  });
+
+  /* ---------- 导出 PNG ---------- */
+  $('btnPng').onclick = function () {
+    var btn = this;
+    if (typeof html2canvas === 'undefined') {
+      alert('截图库未加载（需要联网加载 html2canvas）。\n可改用「导出 HTML」后手动截图。');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '导出中…';
+    var card = $('card');
+    var oldShadow = card.style.boxShadow;
+    card.style.boxShadow = 'none';
+    card.style.borderRadius = '18px';
+
+    html2canvas(card, {
+      scale: 2,
+      backgroundColor: null,
+      useCORS: true,
+      logging: false
+    }).then(function (canvas) {
+      var a = document.createElement('a');
+      a.download = ($('title').value || '工作证') + '_' + ($('org').value || '') + '.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }).catch(function (e) {
+      console.error(e);
+      alert('导出失败：' + e.message);
+    }).finally(function () {
+      card.style.boxShadow = oldShadow;
+      btn.disabled = false;
+      btn.textContent = '导出 PNG';
+    });
+  };
+
+  /* ---------- 导出 HTML（干净版，无面板） ---------- */
+  $('btnHtml').onclick = function () {
+    var clone = $('card').cloneNode(true);
+    var css = Array.prototype.map.call(document.styleSheets, function (sheet) {
+      try {
+        return Array.prototype.map.call(sheet.cssRules, function (r) {
+          return r.cssText;
+        }).join('\n');
+      } catch (e) { return ''; }
+    }).join('\n');
+
+    // 只保留卡片相关规则
+    var keep = css.split('\n').filter(function (line) {
+      return /--|#card|\.card-|\.brand|\.serial|\.divider|\.f-row|\.f-label|\.f-value|\.fields|\.photo|\.stamp|\.watermark|\.hidden/.test(line);
+    }).join('\n');
+
+    var html = '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n' +
+      '<title>' + esc($('title').value) + '</title>\n<style>\n' +
+      'body{margin:0;background:#e8e8e8;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",sans-serif}\n' +
+      keep + '\n</style>\n</head>\n<body>\n' + clone.outerHTML + '\n</body>\n</html>';
+
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.download = ($('title').value || '工作证') + '.html';
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  };
+
+  /* ---------- 初始化 ---------- */
+  DEFAULT_FIELDS.forEach(function (p) { addField(p[0], p[1]); });
+  render();
+})();
+</script>
+</body>
+</html>
